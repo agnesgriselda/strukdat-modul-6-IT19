@@ -1,389 +1,405 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <algorithm>
+#include <fstream>
 #include <memory>
-#include <algorithm> 
+#include <thread>
+#include <chrono>
+#include <limits>
 
 using namespace std;
 
-class Review {
+class Game {
 private:
-    string user;
-    string reviewText;
-    int rating;
+    string judul;
+    string genre;
+    int tahunRilis;
+    string platform;
 
 public:
-    Review(const string &user, const string &reviewText, int rating)
-        : user(user), reviewText(reviewText), rating(rating) {}
+    Game(string judul, string genre, int tahunRilis, string platform)
+        : judul(judul), genre(genre), tahunRilis(tahunRilis), platform(platform) {}
 
-    void displayReview() const {
-        cout << "User: " << user << "\nReview: " << reviewText << "\nRating: " << rating << "/10\n";
+    string getJudul() const {
+        return judul;
+    }
+
+    string getGenre() const {
+        return genre;
+    }
+
+    int getTahunRilis() const {
+        return tahunRilis;
+    }
+
+    string getPlatform() const {
+        return platform;
     }
 };
 
-class Game {
-protected:
-    string title;
-    string genre;
-    double price;
-    vector<shared_ptr<Review>> reviews;
+class GameLibrary {
+private:
+    vector<Game> games;
 
 public:
-    Game(const string &title, const string &genre, double price)
-        : title(title), genre(genre), price(price) {}
-
-    virtual ~Game() = default;
-
-    void addReview(shared_ptr<Review> review) {
-        reviews.push_back(review);
+    void addGame(const Game& game) {
+        games.push_back(game);
     }
 
-    void displayReviews() const {
-        cout << "Reviews for " << title << ":\n";
-        for (const auto &review : reviews) {
-            review->displayReview();
+    void listGames() const {
+        cout << "List of games:\n";
+        for (const auto& game : games) {
+            cout << "- " << game.getJudul() << endl;
+        }
+        cout << endl;
+    }
+
+    bool searchGame(const string& judul) const {
+        auto it = find_if(games.begin(), games.end(), [&](const Game& game) {
+            return game.getJudul() == judul;
+        });
+
+        return it != games.end();
+    }
+
+    void removeGame(const string& judul) {
+        games.erase(remove_if(games.begin(), games.end(), [&](const Game& game) {
+            return game.getJudul() == judul;
+        }), games.end());
+    }
+
+    Game cariGameDariJudul(const string& judul) const {
+        auto it = find_if(games.begin(), games.end(), [&](const Game& game) {
+            return game.getJudul() == judul;
+        });
+        if (it != games.end()) {
+            return *it;
+        } else {
+            return Game("", "", 0, "");
         }
     }
 
-    virtual void displayGameDetails() const {
-        cout << "Title: " << title << "\nGenre: " << genre << "\nPrice: $" << price << "\n";
-        displayReviews();
+    void tampilkanDetailGame(const Game& game) const {
+        cout << "Game Details:\n";
+        cout << "- Title: " << game.getJudul() << endl;
+        cout << "- Genre: " << game.getGenre() << endl;
+        cout << "- Release Year: " << game.getTahunRilis() << endl;
+        cout << "- Platform: " << game.getPlatform() << endl;
+        cout << endl;
     }
 
-    string getTitle() const {
-        return title;
+    void saveGamesToFile(const string& username) const {
+        ofstream outFile(username + ".txt");
+        for (const auto& game : games) {
+            outFile << game.getJudul() << " " << game.getGenre() << " " << game.getTahunRilis() << " " << game.getPlatform() << endl;
+        }
+        outFile.close();
     }
 
-    virtual void specialFeature() const {
-        cout << "No special features.\n";
-    }
-};
-
-class PremiumGame : public Game {
-private:
-    string premiumContent;
-
-public:
-    PremiumGame(const string &title, const string &genre, double price, const string &premiumContent)
-        : Game(title, genre, price), premiumContent(premiumContent) {}
-
-    void displayGameDetails() const override {
-        Game::displayGameDetails();
-        cout << "Premium Content: " << premiumContent << "\n";
-    }
-
-    void specialFeature() const override {
-        cout << "Exclusive premium content: " << premiumContent << "\n";
+    void loadGamesFromFile(const string& username) {
+        ifstream inFile(username + ".txt");
+        string judul, genre, platform;
+        int tahunRilis;
+        games.clear();
+        while (inFile >> judul >> genre >> tahunRilis >> platform) {
+            addGame(Game(judul, genre, tahunRilis, platform));
+        }
+        inFile.close();
     }
 };
 
 class User {
-private:
-    string name;
-    string email;
-    vector<shared_ptr<Game>> library;
-    vector<shared_ptr<Game>> wishlist;
+protected:
+    string username;
+    string password;
 
 public:
-    User(const string &name, const string &email)
-        : name(name), email(email) {}
+    User(string uname, string pwd) : username(uname), password(pwd) {}
 
-    void addGameToLibrary(shared_ptr<Game> game) {
-        library.push_back(game);
+    string getUsername() const {
+        return username;
     }
 
-    void addGameToWishlist(shared_ptr<Game> game) {
-        wishlist.push_back(game);
+    string getPassword() const {
+        return password;
     }
 
-    void removeGameFromLibrary(const string &title) {
-        auto it = remove_if(library.begin(), library.end(), [&title](const shared_ptr<Game> &game) {
-            return game->getTitle() == title;
-        });
-        if (it != library.end()) {
-            library.erase(it, library.end());
-            cout << "Game removed from library.\n";
-        } else {
-            cout << "Game not found in library.\n";
-        }
-    }
-
-    void removeGameFromWishlist(const string &title) {
-        auto it = remove_if(wishlist.begin(), wishlist.end(), [&title](const shared_ptr<Game> &game) {
-            return game->getTitle() == title;
-        });
-        if (it != wishlist.end()) {
-            wishlist.erase(it, wishlist.end());
-            cout << "Game removed from wishlist.\n";
-        } else {
-            cout << "Game not found in wishlist.\n";
-        }
-    }
-
-    void viewLibrary() const {
-        cout << name << "'s Library:\n";
-        for (const auto &game : library) {
-            game->displayGameDetails();
-        }
-    }
-
-    void viewWishlist() const {
-        cout << name << "'s Wishlist:\n";
-        for (const auto &game : wishlist) {
-            game->displayGameDetails();
-        }
-    }
-
-    string getName() const {
-        return name;
+    bool authenticate(string pwd) {
+        return password == pwd;
     }
 };
 
-class Steam {
+class GameManagementSystem {
 private:
-    vector<shared_ptr<Game>> games;
-    vector<shared_ptr<User>> users;
+    vector<unique_ptr<User>> users;
+    GameLibrary& library;
 
 public:
-    void addGame(shared_ptr<Game> game) {
-        games.push_back(game);
+    GameManagementSystem(GameLibrary& lib) : library(lib) {}
+
+    void addUser(unique_ptr<User> user) {
+        users.push_back(std::move(user));
     }
 
-    void registerUser(shared_ptr<User> user) {
-        users.push_back(user);
-    }
-
-    void displayAllGames() const {
-        cout << "Available Games on Steam:\n";
-        for (const auto &game : games) {
-            game->displayGameDetails();
-        }
-    }
-
-    void searchGame(const string &title) const {
-        for (const auto &game : games) {
-            if (game->getTitle() == title) {
-                game->displayGameDetails();
-                return;
-            }
-        }
-        cout << "Game not found.\n";
-    }
-
-    shared_ptr<User> findUser(const string &name) const {
-        for (const auto &user : users) {
-            if (user->getName() == name) {
-                return user;
+    User* findUser(const string& uname, const string& pwd) {
+        for (const auto& user : users) {
+            if (user->getUsername() == uname && user->authenticate(pwd)) {
+                return user.get();
             }
         }
         return nullptr;
     }
 
-    shared_ptr<Game> findGame(const string &title) const {
-        for (const auto &game : games) {
-            if (game->getTitle() == title) {
-                return game;
+    void displayUsers() const {
+        for (const auto& user : users) {
+            cout << "Username: " << user->getUsername() << endl;
+        }
+    }
+
+    bool isUsernameTaken(const string& uname) const {
+        for (const auto& user : users) {
+            if (user->getUsername() == uname) {
+                return true;
             }
         }
-        return nullptr;
+        return false;
+    }
+
+    void saveUsersToFile() const {
+        ofstream outFile("creds.txt");
+        for (const auto& user : users) {
+            outFile << user->getUsername() << " " << user->getPassword() << endl;
+        }
+        outFile.close();
+    }
+
+    void loadUsersFromFile() {
+        ifstream inFile("creds.txt");
+        string uname, pwd;
+        while (inFile >> uname >> pwd) {
+            addUser(make_unique<User>(uname, pwd));
+        }
+        inFile.close();
+    }
+
+    void saveUserGames(const string& username) const {
+        library.saveGamesToFile(username);
+    }
+
+    void loadUserGames(const string& username) {
+        library.loadGamesFromFile(username);
+    }
+
+    void listUserGames() const {
+        library.listGames();
+    }
+
+    Game searchUserGame(const string& judul) const {
+        return library.cariGameDariJudul(judul);
+    }
+};
+
+class LoginRegister {
+private:
+    GameManagementSystem& gms;
+    GameLibrary& library;
+
+    string getPasswordInput() {
+        string password;
+        cout << "Enter password: ";
+        cin >> password;
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        return password;
+    }
+
+    int getChoiceInput() {
+        int choice;
+        cin >> choice;
+        while (cin.fail()) {
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            cout << "Invalid input. Please enter a digit: ";
+            cin >> choice;
+        }
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        return choice;
+    }
+
+public:
+    LoginRegister(GameManagementSystem& system, GameLibrary& lib) : gms(system), library(lib) {}
+
+    void registerUser(string uname, string pwd) {
+        if (gms.isUsernameTaken(uname)) {
+            cout << "Username is already taken!" << endl;
+        } else {
+            gms.addUser(make_unique<User>(uname, pwd));
+            gms.saveUsersToFile();
+            cout << "Registration successful!" << endl;
+        }
+        this_thread::sleep_for(chrono::seconds(1));
+    }
+
+    User* loginUser(string uname, string pwd) {
+        return gms.findUser(uname, pwd);
+    }
+
+    void run() {
+        gms.loadUsersFromFile();
+        int choice;
+        int gameChoice;
+        int listChoice;
+        int searchChoice;
+
+        do {
+            cout << "Welcome to our Game Store\n";
+            cout << "1. Register\n2. Login\n3. Display Users\n4. Exit\n";
+            cout << "Choose an option: ";
+
+            choice = getChoiceInput();
+            cout << "\n";
+
+            this_thread::sleep_for(chrono::seconds(1));
+
+            if (choice == 1){
+                string uname, pwd;
+                cout << "Register\n";
+                cout << "Username: ";
+                getline(cin, uname);
+                cout << "Password: ";
+                pwd = getPasswordInput();
+
+                registerUser(uname, pwd);
+            } else if (choice == 2) {
+                string uname, pwd;
+                cout << "Login\n";
+                cout << "Username: ";
+                getline(cin, uname);
+                cout << "Password: ";
+                pwd = getPasswordInput();
+                cout << "\n";
+
+                User* user = loginUser(uname, pwd);
+                if (user) {
+                    cout << "Login successful!" << endl;
+                    cout << "\n";
+                    cout << "Welcome " << user->getUsername() << "!" << endl;
+
+                    // Load user games from file
+                    gms.loadUserGames(uname);
+
+                    string judul;
+                    string genre;
+                    int tahunRilis;
+                    string platform;
+                    do {
+                        cout << "Game Options:\n";
+                        cout << "1. List games\n2. Add game\n3. Search game\n4. Delete game\n5. Logout\n";
+                        cout << "Choose an option: ";
+
+                        gameChoice = getChoiceInput();
+                        cout << "\n";
+                        Game foundGame("", "", 0, "");
+
+                        switch (gameChoice) {
+                            case 1:
+                                do {
+                                    gms.listUserGames();
+                                    cout << "\n";
+                                    cout << "4. Exit\n";
+                                    cout << "Choose an option: ";
+                                    listChoice = getChoiceInput();
+                                    switch (listChoice) {
+                                        case 4:
+                                            break;
+                                        default:
+                                            cout << "Invalid option!\n";
+                                    }
+                                } while (listChoice != 4);
+                                break;
+                            case 2:
+                                cout << "Enter game title: ";
+                                getline(cin, judul);
+                                cout << "Enter genre: ";
+                                getline(cin, genre);
+                                cout << "Enter release year: ";
+                                cin >> tahunRilis;
+                                cout << "Enter platform: ";
+                                cin >> platform;
+                                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                                library.addGame(Game(judul, genre, tahunRilis, platform));
+                                // Save user games to file
+                                gms.saveUserGames(uname);
+                                cout << "Game added successfully!\n";
+                                break;
+                            case 3:
+                                cout << "Enter game title to search: ";
+                                getline(cin, judul);
+                                foundGame = gms.searchUserGame(judul);
+                                if (foundGame.getJudul() != "") {
+                                    do {
+                                        library.tampilkanDetailGame(foundGame);
+                                        cout << "\n";
+                                        cout << "4. Exit\n";
+                                        cout << "Choose an option: ";
+                                        searchChoice = getChoiceInput();
+                                        switch (searchChoice) {
+                                            case 4:
+                                                break;
+                                            default:
+                                                cout << "Invalid option!\n";
+                                        }
+                                    } while (searchChoice != 4);
+                                } else {
+                                    cout << "Game not found!\n";
+                                }
+                                break;
+                            case 4:
+                                cout << "Enter game title to delete: ";
+                                getline(cin, judul);
+                                library.removeGame(judul);
+                                // Save user games to file
+                                gms.saveUserGames(uname);
+                                cout << "Game deleted successfully!\n";
+                                break;
+                            case 5:
+                                cout << "Logging out...\n";
+                                gms.saveUserGames(uname);
+                                break;
+                            default:
+                                cout << "Invalid option!\n";
+                                break;
+                        }
+                        cout << "\n";
+
+                        this_thread::sleep_for(chrono::seconds(1));
+                    } while (gameChoice != 5);
+
+                } else {
+                    cout << "Login failed!" << endl;
+                    cout << "\n";
+                }
+                this_thread::sleep_for(chrono::seconds(1));
+            } else if (choice == 3) {
+                cout << "All registered users:" << endl;
+                gms.displayUsers();
+                cout << "\n";
+                this_thread::sleep_for(chrono::seconds(1));
+            } else if (choice != 4) {
+                cout << "Invalid option!" << endl;
+                cout << "\n";
+                this_thread::sleep_for(chrono::seconds(1));
+            }
+        } while (choice != 4);
     }
 };
 
 int main() {
-    Steam steamPlatform;
+    GameLibrary library;
+    GameManagementSystem gms(library);
+    LoginRegister lr(gms, library);
 
-    int choice;
-    while (true) {
-        cout << "\nSteam Menu:\n";
-        cout << "1. Add Game\n";
-        cout << "2. Register User\n";
-        cout << "3. Add Game to User Library\n";
-        cout << "4. Add Game to User Wishlist\n";
-        cout << "5. Remove Game from User Library\n";
-        cout << "6. Remove Game from User Wishlist\n";
-        cout << "7. Add Review to Game\n";
-        cout << "8. View All Reviews for Game\n";
-        cout << "9. View All Games\n";
-        cout << "10. View User Library\n";
-        cout << "11. View User Wishlist\n";
-        cout << "12. Search Game\n";
-        cout << "13. Exit\n";
-        cout << "Enter your choice: ";
-        cin >> choice;
-
-        if (choice == 1) {
-            string title, genre, type, premiumContent;
-            double price;
-            cout << "Enter game title: ";
-            cin.ignore();
-            getline(cin, title);
-            cout << "Enter game genre: ";
-            getline(cin, genre);
-            cout << "Enter game price: ";
-            cin >> price;
-            cout << "Is this a premium game? (yes/no): ";
-            cin.ignore();
-            getline(cin, type);
-
-            if (type == "yes") {
-                cout << "Enter premium content description: ";
-                getline(cin, premiumContent);
-                auto game = make_shared<PremiumGame>(title, genre, price, premiumContent);
-                steamPlatform.addGame(game);
-            } else {
-                auto game = make_shared<Game>(title, genre, price);
-                steamPlatform.addGame(game);
-            }
-            cout << "Game added successfully.\n";
-        } else if (choice == 2) {
-            string name, email;
-            cout << "Enter user name: ";
-            cin.ignore();
-            getline(cin, name);
-            cout << "Enter user email: ";
-            getline(cin, email);
-            auto user = make_shared<User>(name, email);
-            steamPlatform.registerUser(user);
-            cout << "User registered successfully.\n";
-        } else if (choice == 3) {
-            string userName, gameTitle;
-            cout << "Enter user name: ";
-            cin.ignore();
-            getline(cin, userName);
-            cout << "Enter game title: ";
-            getline(cin, gameTitle);
-
-            auto user = steamPlatform.findUser(userName);
-            if (user) {
-                auto game = steamPlatform.findGame(gameTitle);
-                if (game) {
-                    user->addGameToLibrary(game);
-                    cout << "Game added to library successfully.\n";
-                } else {
-                    cout << "Game not found.\n";
-                }
-            } else {
-                cout << "User not found.\n";
-            }
-        } else if (choice == 4) {
-            string userName, gameTitle;
-            cout << "Enter user name: ";
-            cin.ignore();
-            getline(cin, userName);
-            cout << "Enter game title: ";
-            getline(cin, gameTitle);
-
-            auto user = steamPlatform.findUser(userName);
-            if (user) {
-                auto game = steamPlatform.findGame(gameTitle);
-                if (game) {
-                    user->addGameToWishlist(game);
-                    cout << "Game added to wishlist successfully.\n";
-                } else {
-                    cout << "Game not found.\n";
-                }
-            } else {
-                cout << "User not found.\n";
-            }
-        } else if (choice == 5) {
-            string userName, gameTitle;
-            cout << "Enter user name: ";
-            cin.ignore();
-            getline(cin, userName);
-            cout << "Enter game title: ";
-            getline(cin, gameTitle);
-
-            auto user = steamPlatform.findUser(userName);
-            if (user) {
-                user->removeGameFromLibrary(gameTitle);
-            } else {
-                cout << "User not found.\n";
-            }
-        } else if (choice == 6) {
-            string userName, gameTitle;
-            cout << "Enter user name: ";
-            cin.ignore();
-            getline(cin, userName);
-            cout << "Enter game title: ";
-            getline(cin, gameTitle);
-
-            auto user = steamPlatform.findUser(userName);
-            if (user) {
-                user->removeGameFromWishlist(gameTitle);
-            } else {
-                cout << "User not found.\n";
-            }
-        } else if (choice == 7) {
-            string userName, gameTitle, reviewText;
-            int rating;
-            cout << "Enter user name: ";
-            cin.ignore();
-            getline(cin, userName);
-            cout << "Enter game title: ";
-            getline(cin, gameTitle);
-            cout << "Enter review text: ";
-            getline(cin, reviewText);
-            cout << "Enter rating (1-10): ";
-            cin >> rating;
-
-            auto game = steamPlatform.findGame(gameTitle);
-            if (game) {
-                auto review = make_shared<Review>(userName, reviewText, rating);
-                game->addReview(review);
-                cout << "Review added successfully.\n";
-            } else {
-                cout << "Game not found.\n";
-            }
-        } else if (choice == 8) {
-            string gameTitle;
-            cout << "Enter game title: ";
-            cin.ignore();
-            getline(cin, gameTitle);
-
-            auto game = steamPlatform.findGame(gameTitle);
-            if (game) {
-                game->displayReviews();
-            } else {
-                cout << "Game not found.\n";
-            }
-        } else if (choice == 9) {
-            steamPlatform.displayAllGames();
-        } else if (choice == 10) {
-            string userName;
-            cout << "Enter user name: ";
-            cin.ignore();
-            getline(cin, userName);
-
-            auto user = steamPlatform.findUser(userName);
-            if (user) {
-                user->viewLibrary();
-            } else {
-                cout << "User not found.\n";
-            }
-        } else if (choice == 11) {
-            string userName;
-            cout << "Enter user name: ";
-            cin.ignore();
-            getline(cin, userName);
-
-            auto user = steamPlatform.findUser(userName);
-            if (user) {
-                user->viewWishlist();
-            } else {
-                cout << "User not found.\n";
-            }
-        } else if (choice == 12) {
-            string gameTitle;
-            cout << "Enter game title: ";
-            cin.ignore();
-            getline(cin, gameTitle);
-            steamPlatform.searchGame(gameTitle);
-        } else if (choice == 13) {
-            break;
-        } else {
-            cout << "Invalid choice. Please try again.\n";
-        }
-    }
+    lr.run();
 
     return 0;
 }
