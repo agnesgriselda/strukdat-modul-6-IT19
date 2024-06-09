@@ -1,0 +1,389 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <memory>
+#include <algorithm> 
+
+using namespace std;
+
+class Review {
+private:
+    string user;
+    string reviewText;
+    int rating;
+
+public:
+    Review(const string &user, const string &reviewText, int rating)
+        : user(user), reviewText(reviewText), rating(rating) {}
+
+    void displayReview() const {
+        cout << "User: " << user << "\nReview: " << reviewText << "\nRating: " << rating << "/10\n";
+    }
+};
+
+class Game {
+protected:
+    string title;
+    string genre;
+    double price;
+    vector<shared_ptr<Review>> reviews;
+
+public:
+    Game(const string &title, const string &genre, double price)
+        : title(title), genre(genre), price(price) {}
+
+    virtual ~Game() = default;
+
+    void addReview(shared_ptr<Review> review) {
+        reviews.push_back(review);
+    }
+
+    void displayReviews() const {
+        cout << "Reviews for " << title << ":\n";
+        for (const auto &review : reviews) {
+            review->displayReview();
+        }
+    }
+
+    virtual void displayGameDetails() const {
+        cout << "Title: " << title << "\nGenre: " << genre << "\nPrice: $" << price << "\n";
+        displayReviews();
+    }
+
+    string getTitle() const {
+        return title;
+    }
+
+    virtual void specialFeature() const {
+        cout << "No special features.\n";
+    }
+};
+
+class PremiumGame : public Game {
+private:
+    string premiumContent;
+
+public:
+    PremiumGame(const string &title, const string &genre, double price, const string &premiumContent)
+        : Game(title, genre, price), premiumContent(premiumContent) {}
+
+    void displayGameDetails() const override {
+        Game::displayGameDetails();
+        cout << "Premium Content: " << premiumContent << "\n";
+    }
+
+    void specialFeature() const override {
+        cout << "Exclusive premium content: " << premiumContent << "\n";
+    }
+};
+
+class User {
+private:
+    string name;
+    string email;
+    vector<shared_ptr<Game>> library;
+    vector<shared_ptr<Game>> wishlist;
+
+public:
+    User(const string &name, const string &email)
+        : name(name), email(email) {}
+
+    void addGameToLibrary(shared_ptr<Game> game) {
+        library.push_back(game);
+    }
+
+    void addGameToWishlist(shared_ptr<Game> game) {
+        wishlist.push_back(game);
+    }
+
+    void removeGameFromLibrary(const string &title) {
+        auto it = remove_if(library.begin(), library.end(), [&title](const shared_ptr<Game> &game) {
+            return game->getTitle() == title;
+        });
+        if (it != library.end()) {
+            library.erase(it, library.end());
+            cout << "Game removed from library.\n";
+        } else {
+            cout << "Game not found in library.\n";
+        }
+    }
+
+    void removeGameFromWishlist(const string &title) {
+        auto it = remove_if(wishlist.begin(), wishlist.end(), [&title](const shared_ptr<Game> &game) {
+            return game->getTitle() == title;
+        });
+        if (it != wishlist.end()) {
+            wishlist.erase(it, wishlist.end());
+            cout << "Game removed from wishlist.\n";
+        } else {
+            cout << "Game not found in wishlist.\n";
+        }
+    }
+
+    void viewLibrary() const {
+        cout << name << "'s Library:\n";
+        for (const auto &game : library) {
+            game->displayGameDetails();
+        }
+    }
+
+    void viewWishlist() const {
+        cout << name << "'s Wishlist:\n";
+        for (const auto &game : wishlist) {
+            game->displayGameDetails();
+        }
+    }
+
+    string getName() const {
+        return name;
+    }
+};
+
+class Steam {
+private:
+    vector<shared_ptr<Game>> games;
+    vector<shared_ptr<User>> users;
+
+public:
+    void addGame(shared_ptr<Game> game) {
+        games.push_back(game);
+    }
+
+    void registerUser(shared_ptr<User> user) {
+        users.push_back(user);
+    }
+
+    void displayAllGames() const {
+        cout << "Available Games on Steam:\n";
+        for (const auto &game : games) {
+            game->displayGameDetails();
+        }
+    }
+
+    void searchGame(const string &title) const {
+        for (const auto &game : games) {
+            if (game->getTitle() == title) {
+                game->displayGameDetails();
+                return;
+            }
+        }
+        cout << "Game not found.\n";
+    }
+
+    shared_ptr<User> findUser(const string &name) const {
+        for (const auto &user : users) {
+            if (user->getName() == name) {
+                return user;
+            }
+        }
+        return nullptr;
+    }
+
+    shared_ptr<Game> findGame(const string &title) const {
+        for (const auto &game : games) {
+            if (game->getTitle() == title) {
+                return game;
+            }
+        }
+        return nullptr;
+    }
+};
+
+int main() {
+    Steam steamPlatform;
+
+    int choice;
+    while (true) {
+        cout << "\nSteam Menu:\n";
+        cout << "1. Add Game\n";
+        cout << "2. Register User\n";
+        cout << "3. Add Game to User Library\n";
+        cout << "4. Add Game to User Wishlist\n";
+        cout << "5. Remove Game from User Library\n";
+        cout << "6. Remove Game from User Wishlist\n";
+        cout << "7. Add Review to Game\n";
+        cout << "8. View All Reviews for Game\n";
+        cout << "9. View All Games\n";
+        cout << "10. View User Library\n";
+        cout << "11. View User Wishlist\n";
+        cout << "12. Search Game\n";
+        cout << "13. Exit\n";
+        cout << "Enter your choice: ";
+        cin >> choice;
+
+        if (choice == 1) {
+            string title, genre, type, premiumContent;
+            double price;
+            cout << "Enter game title: ";
+            cin.ignore();
+            getline(cin, title);
+            cout << "Enter game genre: ";
+            getline(cin, genre);
+            cout << "Enter game price: ";
+            cin >> price;
+            cout << "Is this a premium game? (yes/no): ";
+            cin.ignore();
+            getline(cin, type);
+
+            if (type == "yes") {
+                cout << "Enter premium content description: ";
+                getline(cin, premiumContent);
+                auto game = make_shared<PremiumGame>(title, genre, price, premiumContent);
+                steamPlatform.addGame(game);
+            } else {
+                auto game = make_shared<Game>(title, genre, price);
+                steamPlatform.addGame(game);
+            }
+            cout << "Game added successfully.\n";
+        } else if (choice == 2) {
+            string name, email;
+            cout << "Enter user name: ";
+            cin.ignore();
+            getline(cin, name);
+            cout << "Enter user email: ";
+            getline(cin, email);
+            auto user = make_shared<User>(name, email);
+            steamPlatform.registerUser(user);
+            cout << "User registered successfully.\n";
+        } else if (choice == 3) {
+            string userName, gameTitle;
+            cout << "Enter user name: ";
+            cin.ignore();
+            getline(cin, userName);
+            cout << "Enter game title: ";
+            getline(cin, gameTitle);
+
+            auto user = steamPlatform.findUser(userName);
+            if (user) {
+                auto game = steamPlatform.findGame(gameTitle);
+                if (game) {
+                    user->addGameToLibrary(game);
+                    cout << "Game added to library successfully.\n";
+                } else {
+                    cout << "Game not found.\n";
+                }
+            } else {
+                cout << "User not found.\n";
+            }
+        } else if (choice == 4) {
+            string userName, gameTitle;
+            cout << "Enter user name: ";
+            cin.ignore();
+            getline(cin, userName);
+            cout << "Enter game title: ";
+            getline(cin, gameTitle);
+
+            auto user = steamPlatform.findUser(userName);
+            if (user) {
+                auto game = steamPlatform.findGame(gameTitle);
+                if (game) {
+                    user->addGameToWishlist(game);
+                    cout << "Game added to wishlist successfully.\n";
+                } else {
+                    cout << "Game not found.\n";
+                }
+            } else {
+                cout << "User not found.\n";
+            }
+        } else if (choice == 5) {
+            string userName, gameTitle;
+            cout << "Enter user name: ";
+            cin.ignore();
+            getline(cin, userName);
+            cout << "Enter game title: ";
+            getline(cin, gameTitle);
+
+            auto user = steamPlatform.findUser(userName);
+            if (user) {
+                user->removeGameFromLibrary(gameTitle);
+            } else {
+                cout << "User not found.\n";
+            }
+        } else if (choice == 6) {
+            string userName, gameTitle;
+            cout << "Enter user name: ";
+            cin.ignore();
+            getline(cin, userName);
+            cout << "Enter game title: ";
+            getline(cin, gameTitle);
+
+            auto user = steamPlatform.findUser(userName);
+            if (user) {
+                user->removeGameFromWishlist(gameTitle);
+            } else {
+                cout << "User not found.\n";
+            }
+        } else if (choice == 7) {
+            string userName, gameTitle, reviewText;
+            int rating;
+            cout << "Enter user name: ";
+            cin.ignore();
+            getline(cin, userName);
+            cout << "Enter game title: ";
+            getline(cin, gameTitle);
+            cout << "Enter review text: ";
+            getline(cin, reviewText);
+            cout << "Enter rating (1-10): ";
+            cin >> rating;
+
+            auto game = steamPlatform.findGame(gameTitle);
+            if (game) {
+                auto review = make_shared<Review>(userName, reviewText, rating);
+                game->addReview(review);
+                cout << "Review added successfully.\n";
+            } else {
+                cout << "Game not found.\n";
+            }
+        } else if (choice == 8) {
+            string gameTitle;
+            cout << "Enter game title: ";
+            cin.ignore();
+            getline(cin, gameTitle);
+
+            auto game = steamPlatform.findGame(gameTitle);
+            if (game) {
+                game->displayReviews();
+            } else {
+                cout << "Game not found.\n";
+            }
+        } else if (choice == 9) {
+            steamPlatform.displayAllGames();
+        } else if (choice == 10) {
+            string userName;
+            cout << "Enter user name: ";
+            cin.ignore();
+            getline(cin, userName);
+
+            auto user = steamPlatform.findUser(userName);
+            if (user) {
+                user->viewLibrary();
+            } else {
+                cout << "User not found.\n";
+            }
+        } else if (choice == 11) {
+            string userName;
+            cout << "Enter user name: ";
+            cin.ignore();
+            getline(cin, userName);
+
+            auto user = steamPlatform.findUser(userName);
+            if (user) {
+                user->viewWishlist();
+            } else {
+                cout << "User not found.\n";
+            }
+        } else if (choice == 12) {
+            string gameTitle;
+            cout << "Enter game title: ";
+            cin.ignore();
+            getline(cin, gameTitle);
+            steamPlatform.searchGame(gameTitle);
+        } else if (choice == 13) {
+            break;
+        } else {
+            cout << "Invalid choice. Please try again.\n";
+        }
+    }
+
+    return 0;
+}
