@@ -6,7 +6,7 @@
 #include <memory>
 #include <thread>
 #include <chrono>
-#include <limits>
+#include <conio.h>
 
 using namespace std;
 
@@ -55,6 +55,18 @@ public:
         cout << endl;
     }
 
+    void listGamesFromFile(const string& username) const {
+        ifstream inFile(username + ".txt");
+        string judul, genre, platform;
+        int tahunRilis;
+        cout << "List of games:\n";
+        while (inFile >> judul >> genre >> tahunRilis >> platform) {
+            cout << "- " << judul << endl;
+        }
+        inFile.close();
+        cout << endl;
+    }
+
     bool searchGame(const string& judul) const {
         auto it = find_if(games.begin(), games.end(), [&](const Game& game) {
             return game.getJudul() == judul;
@@ -63,21 +75,30 @@ public:
         return it != games.end();
     }
 
-    void removeGame(const string& judul) {
-        games.erase(remove_if(games.begin(), games.end(), [&](const Game& game) {
-            return game.getJudul() == judul;
-        }), games.end());
-    }
-
     Game cariGameDariJudul(const string& judul) const {
         auto it = find_if(games.begin(), games.end(), [&](const Game& game) {
             return game.getJudul() == judul;
         });
+
         if (it != games.end()) {
             return *it;
         } else {
             return Game("", "", 0, "");
         }
+    }
+
+    Game searchGameFromFile(const string& username, const string& judul) const {
+        ifstream inFile(username + ".txt");
+        string gameJudul, genre, platform;
+        int tahunRilis;
+        while (inFile >> gameJudul >> genre >> tahunRilis >> platform) {
+            if (gameJudul == judul) {
+                inFile.close();
+                return Game(gameJudul, genre, tahunRilis, platform);
+            }
+        }
+        inFile.close();
+        return Game("", "", 0, "");
     }
 
     void tampilkanDetailGame(const Game& game) const {
@@ -89,6 +110,12 @@ public:
         cout << endl;
     }
 
+    void removeGame(const string& judul) {
+        games.erase(remove_if(games.begin(), games.end(), [&](const Game& game) {
+            return game.getJudul() == judul;
+        }), games.end());
+    }
+
     void saveGamesToFile(const string& username) const {
         ofstream outFile(username + ".txt");
         for (const auto& game : games) {
@@ -97,11 +124,16 @@ public:
         outFile.close();
     }
 
+    void addGameToFile(const string& username, const Game& game) {
+        ofstream outFile(username + ".txt", ios::app);
+        outFile << game.getJudul() << " " << game.getGenre() << " " << game.getTahunRilis() << " " << game.getPlatform() << endl;
+        outFile.close();
+    }
+
     void loadGamesFromFile(const string& username) {
         ifstream inFile(username + ".txt");
         string judul, genre, platform;
         int tahunRilis;
-        games.clear();
         while (inFile >> judul >> genre >> tahunRilis >> platform) {
             addGame(Game(judul, genre, tahunRilis, platform));
         }
@@ -117,16 +149,44 @@ protected:
 public:
     User(string uname, string pwd) : username(uname), password(pwd) {}
 
-    string getUsername() const {
+    virtual string getUsername() const {
         return username;
     }
 
-    string getPassword() const {
+    virtual string getPassword() const {
         return password;
     }
 
-    bool authenticate(string pwd) {
+    virtual bool authenticate(string pwd) {
         return password == pwd;
+    }
+
+    virtual string getUserType() const = 0;
+};
+
+class Admin : public User {
+public:
+    Admin(string uname, string pwd) : User(uname, pwd) {}
+
+    bool authenticate(string pwd) override {
+        return password == pwd;
+    }
+
+    string getUserType() const override {
+        return "Admin";
+    }
+};
+
+class RegularUser : public User {
+public:
+    RegularUser(string uname, string pwd) : User(uname, pwd) {}
+
+    bool authenticate(string pwd) override {
+        return password == pwd;
+    }
+
+    string getUserType() const override {
+        return "RegularUser";
     }
 };
 
@@ -153,7 +213,7 @@ public:
 
     void displayUsers() const {
         for (const auto& user : users) {
-            cout << "Username: " << user->getUsername() << endl;
+            cout << "Username: " << user->getUsername() << " (" << user->getUserType() << ")" << endl;
         }
     }
 
@@ -169,16 +229,20 @@ public:
     void saveUsersToFile() const {
         ofstream outFile("creds.txt");
         for (const auto& user : users) {
-            outFile << user->getUsername() << " " << user->getPassword() << endl;
+            outFile << user->getUsername() << " " << user->getPassword() << " " << user->getUserType() << endl;
         }
         outFile.close();
     }
 
     void loadUsersFromFile() {
         ifstream inFile("creds.txt");
-        string uname, pwd;
-        while (inFile >> uname >> pwd) {
-            addUser(make_unique<User>(uname, pwd));
+        string uname, pwd, userType;
+        while (inFile >> uname >> pwd >> userType) {
+            if (userType == "Admin") {
+                addUser(make_unique<Admin>(uname, pwd));
+            } else if (userType == "RegularUser") {
+                addUser(make_unique<RegularUser>(uname, pwd));
+            }
         }
         inFile.close();
     }
@@ -190,14 +254,6 @@ public:
     void loadUserGames(const string& username) {
         library.loadGamesFromFile(username);
     }
-
-    void listUserGames() const {
-        library.listGames();
-    }
-
-    Game searchUserGame(const string& judul) const {
-        return library.cariGameDariJudul(judul);
-    }
 };
 
 class LoginRegister {
@@ -207,35 +263,49 @@ private:
 
     string getPasswordInput() {
         string password;
-        cout << "Enter password: ";
-        cin >> password;
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        char ch;
+        while ((ch = _getch()) != '\r') {
+            if (ch == '\b') {
+                if (!password.empty()) {
+                    cout << "\b \b";
+                    password.pop_back();
+                }
+            } else {
+                password.push_back(ch);
+                cout << '*';
+            }
+        }
+        cout << endl;
         return password;
     }
 
     int getChoiceInput() {
-        int choice;
-        cin >> choice;
-        while (cin.fail()) {
-            cin.clear();
-            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        char choice = _getch();
+        while (!isdigit(choice)) {
+            cout << "\n";
             cout << "Invalid input. Please enter a digit: ";
-            cin >> choice;
+            choice = _getch();
         }
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
-        return choice;
+        cout << choice << endl;
+        return choice - '0';
     }
 
 public:
     LoginRegister(GameManagementSystem& system, GameLibrary& lib) : gms(system), library(lib) {}
 
-    void registerUser(string uname, string pwd) {
+    void registerUser(string uname, string pwd, string userType) {
         if (gms.isUsernameTaken(uname)) {
             cout << "Username is already taken!" << endl;
+            cout << "\n";
         } else {
-            gms.addUser(make_unique<User>(uname, pwd));
+            if (userType == "Admin") {
+                gms.addUser(make_unique<Admin>(uname, pwd));
+            } else {
+                gms.addUser(make_unique<RegularUser>(uname, pwd));
+            }
             gms.saveUsersToFile();
             cout << "Registration successful!" << endl;
+            cout << "\n";
         }
         this_thread::sleep_for(chrono::seconds(1));
     }
@@ -248,8 +318,6 @@ public:
         gms.loadUsersFromFile();
         int choice;
         int gameChoice;
-        int listChoice;
-        int searchChoice;
 
         do {
             cout << "Welcome to our Game Store\n";
@@ -261,15 +329,17 @@ public:
 
             this_thread::sleep_for(chrono::seconds(1));
 
-            if (choice == 1){
-                string uname, pwd;
+            if (choice == 1) {
+                string uname, pwd, userType;
                 cout << "Register\n";
                 cout << "Username: ";
                 getline(cin, uname);
                 cout << "Password: ";
                 pwd = getPasswordInput();
+                cout << "User type (Admin/RegularUser): ";
+                getline(cin, userType);
 
-                registerUser(uname, pwd);
+                registerUser(uname, pwd, userType);
             } else if (choice == 2) {
                 string uname, pwd;
                 cout << "Login\n";
@@ -283,10 +353,7 @@ public:
                 if (user) {
                     cout << "Login successful!" << endl;
                     cout << "\n";
-                    cout << "Welcome " << user->getUsername() << "!" << endl;
-
-                    // Load user games from file
-                    gms.loadUserGames(uname);
+                    cout << "Welcome " << user->getUsername() << " (" << user->getUserType() << ")!" << endl;
 
                     string judul;
                     string genre;
@@ -303,22 +370,10 @@ public:
 
                         switch (gameChoice) {
                             case 1:
-                                do {
-                                    gms.listUserGames();
-                                    cout << "\n";
-                                    cout << "4. Exit\n";
-                                    cout << "Choose an option: ";
-                                    listChoice = getChoiceInput();
-                                    switch (listChoice) {
-                                        case 4:
-                                            break;
-                                        default:
-                                            cout << "Invalid option!\n";
-                                    }
-                                } while (listChoice != 4);
+                                library.listGamesFromFile(user->getUsername());
                                 break;
                             case 2:
-                                cout << "Enter game title: ";
+                                cout << "Enter game judul: ";
                                 getline(cin, judul);
                                 cout << "Enter genre: ";
                                 getline(cin, genre);
@@ -327,44 +382,27 @@ public:
                                 cout << "Enter platform: ";
                                 cin >> platform;
                                 cin.ignore(numeric_limits<streamsize>::max(), '\n');
-                                library.addGame(Game(judul, genre, tahunRilis, platform));
-                                // Save user games to file
-                                gms.saveUserGames(uname);
+                                library.addGameToFile(user->getUsername(), Game(judul, genre, tahunRilis, platform));
                                 cout << "Game added successfully!\n";
                                 break;
                             case 3:
-                                cout << "Enter game title to search: ";
+                                cout << "Enter game judul to search: ";
                                 getline(cin, judul);
-                                foundGame = gms.searchUserGame(judul);
+                                foundGame = library.searchGameFromFile(user->getUsername(), judul);
                                 if (foundGame.getJudul() != "") {
-                                    do {
-                                        library.tampilkanDetailGame(foundGame);
-                                        cout << "\n";
-                                        cout << "4. Exit\n";
-                                        cout << "Choose an option: ";
-                                        searchChoice = getChoiceInput();
-                                        switch (searchChoice) {
-                                            case 4:
-                                                break;
-                                            default:
-                                                cout << "Invalid option!\n";
-                                        }
-                                    } while (searchChoice != 4);
+                                    library.tampilkanDetailGame(foundGame);
                                 } else {
                                     cout << "Game not found!\n";
                                 }
                                 break;
                             case 4:
-                                cout << "Enter game title to delete: ";
+                                cout << "Enter game judul to delete: ";
                                 getline(cin, judul);
                                 library.removeGame(judul);
-                                // Save user games to file
-                                gms.saveUserGames(uname);
                                 cout << "Game deleted successfully!\n";
                                 break;
                             case 5:
                                 cout << "Logging out...\n";
-                                gms.saveUserGames(uname);
                                 break;
                             default:
                                 cout << "Invalid option!\n";
@@ -393,6 +431,7 @@ public:
         } while (choice != 4);
     }
 };
+
 
 int main() {
     GameLibrary library;
