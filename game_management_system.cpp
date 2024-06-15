@@ -307,7 +307,6 @@ public:
             cout << "Registration successful!" << endl;
             cout << "\n";
         }
-        this_thread::sleep_for(chrono::seconds(1));
     }
 
     User* loginUser(string uname, string pwd) {
@@ -327,7 +326,7 @@ public:
             choice = getChoiceInput();
             cout << "\n";
 
-            this_thread::sleep_for(chrono::seconds(1));
+
 
             if (choice == 1) {
                 string uname, pwd, userType;
@@ -410,23 +409,23 @@ public:
                         }
                         cout << "\n";
 
-                        this_thread::sleep_for(chrono::seconds(1));
+            
                     } while (gameChoice != 5);
 
                 } else {
                     cout << "Login failed!" << endl;
                     cout << "\n";
                 }
-                this_thread::sleep_for(chrono::seconds(1));
+    
             } else if (choice == 3) {
                 cout << "All registered users:" << endl;
                 gms.displayUsers();
                 cout << "\n";
-                this_thread::sleep_for(chrono::seconds(1));
+    
             } else if (choice != 4) {
                 cout << "Invalid option!" << endl;
                 cout << "\n";
-                this_thread::sleep_for(chrono::seconds(1));
+    
             }
         } while (choice != 4);
     }
